@@ -10,28 +10,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
-
 app.get("/", (req, res) => {
   res.send("Backend is working");
 });
 
 if (!process.env.MONGO_URL) {
-  console.log("MONGO_URL is missing in .env file");
-  process.exit(1);
+  console.log("MONGO_URL is missing");
+} else {
+  mongoose
+    .connect(process.env.MONGO_URL)
+    .then(() => {
+      console.log("✅ MongoDB connected");
+      console.log("Connected database:", mongoose.connection.name);
+    })
+    .catch((err) => {
+      console.error("❌ MongoDB connection error:");
+      console.error(err);
+    });
 }
 
-console.log("MONGO_URL =", process.env.MONGO_URL);
-
-mongoose.connect(process.env.MONGO_URL)
-  .then(() => {
-    console.log("✅ MongoDB connected");
-    console.log("Connected database:", mongoose.connection.name);
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:");
-    console.error(err);
-  });
 const FormSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -50,7 +47,9 @@ const FormSchema = new mongoose.Schema({
   },
 });
 
-const Form = mongoose.model("Form", FormSchema, "visa_application");
+const Form =
+  mongoose.models.Form ||
+  mongoose.model("Form", FormSchema, "visa_application");
 
 app.post("/api/contact", async (req, res) => {
   try {
@@ -60,8 +59,6 @@ app.post("/api/contact", async (req, res) => {
         message: "MongoDB is not connected",
       });
     }
-
-    console.log("FORM RECEIVED:", req.body);
 
     const newForm = new Form({
       name: req.body.name,
@@ -75,25 +72,17 @@ app.post("/api/contact", async (req, res) => {
 
     const savedData = await newForm.save();
 
-    console.log("SAVED DATA ID:", savedData._id);
-
     res.json({
       success: true,
       message: "Appointment saved successfully",
       id: savedData._id,
     });
   } catch (error) {
-    console.error("SAVE ERROR:", error.message);
-
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
 
 export default app;
